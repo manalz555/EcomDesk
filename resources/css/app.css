@@ -1,0 +1,202 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/forms';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Hides Alpine-managed elements until Alpine boots and removes the x-cloak
+   attribute — without this, dropdowns/panels flash open on every page load. */
+[x-cloak] {
+    display: none !important;
+}
+
+@theme {
+    --font-sans: 'Figtree', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Warm neutral / beige scale — primary brand surface color. */
+    --color-sand-50: #fdfcfa;
+    --color-sand-100: #f8f4ec;
+    --color-sand-200: #f0e8d8;
+    --color-sand-300: #e4d5b7;
+    --color-sand-400: #d3bc8e;
+    --color-sand-500: #c0a36c;
+    --color-sand-600: #a6854f;
+    --color-sand-700: #87693d;
+    --color-sand-800: #6b5333;
+    --color-sand-900: #57432c;
+
+    /* Near-black ink scale — primary text / dark-mode surface color. */
+    --color-ink-50: #f5f5f4;
+    --color-ink-100: #e7e6e4;
+    --color-ink-200: #cbc9c5;
+    --color-ink-300: #a8a5a0;
+    --color-ink-400: #7c7871;
+    --color-ink-500: #5a564f;
+    --color-ink-600: #413e39;
+    --color-ink-700: #2e2c28;
+    --color-ink-800: #1c1b18;
+    --color-ink-900: #0e0d0b;
+    --color-ink-950: #080807;
+
+    --shadow-soft: 0 1px 2px 0 rgb(14 13 11 / 0.04), 0 1px 3px 0 rgb(14 13 11 / 0.06);
+    --shadow-card: 0 2px 8px -2px rgb(14 13 11 / 0.06), 0 4px 16px -4px rgb(14 13 11 / 0.08);
+
+    --radius-xl: 0.875rem;
+    --radius-2xl: 1.25rem;
+}
+
+/* ---- Landing page motion (scroll reveal, floating icons, rotating card glow, CTA shimmer) ---- */
+
+/* Scroll reveal: fades a section/element up into place the first time it enters the viewport.
+   Toggled by a small IntersectionObserver in resources/js/app.js (adds .is-visible once, never removes it). */
+[data-reveal] {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-reveal].is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+    [data-reveal] {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+.animate-float {
+    animation: float 3.2s ease-in-out infinite;
+}
+
+@keyframes spin-slow {
+    to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+    animation: spin-slow 6s linear infinite;
+}
+
+/* Rotating gradient ring around a card, on hover — nested-div technique (no mask-composite,
+   which is unreliable across browsers). Structure required in the HTML:
+   .glow-card (padding = ring thickness, overflow hidden, clips the oversized spinner)
+     .glow-card__spin (oversized conic-gradient div that rotates; only its edge peeks through
+                        the padding gap, since it's clipped by the parent's overflow:hidden)
+     .glow-card__inner (the real card surface — bg color, radius, content — sits on top,
+                         covering everything except that thin ring) */
+.glow-card {
+    position: relative;
+    padding: 1.5px;
+    border-radius: inherit;
+    overflow: hidden;
+}
+.glow-card__spin {
+    position: absolute;
+    inset: -75%;
+    background: conic-gradient(from 0deg, transparent 0%, var(--glow-color, #c0a36c) 15%, transparent 30%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    animation: spin-slow 4.5s linear infinite;
+}
+.glow-card:hover .glow-card__spin {
+    opacity: 1;
+}
+.glow-card__inner {
+    position: relative;
+    border-radius: inherit;
+    height: 100%;
+}
+
+@keyframes shimmer-sweep {
+    0% { transform: translateX(-120%) skewX(-15deg); }
+    60%, 100% { transform: translateX(220%) skewX(-15deg); }
+}
+.btn-shimmer {
+    position: relative;
+    overflow: hidden;
+}
+.btn-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: 40%;
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+    animation: shimmer-sweep 3.2s ease-in-out infinite;
+    animation-delay: 1s;
+}
+
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgb(192 163 108 / 0.45); }
+    50% { box-shadow: 0 0 0 10px rgb(192 163 108 / 0); }
+}
+.btn-pulse {
+    animation: pulse-glow 2.4s ease-in-out infinite;
+}
+
+/* ---- Submit feedback: spinner appended to any submit button while its form
+   is being sent (added by the global submit listener in app.js). Uses
+   currentColor so it adapts to any button style, light or dark. ---- */
+@keyframes btn-spin {
+    to { transform: rotate(360deg); }
+}
+.btn-loading {
+    opacity: 0.75;
+    cursor: wait;
+}
+.btn-loading::after {
+    content: '';
+    display: inline-block;
+    width: 0.85em;
+    height: 0.85em;
+    margin-left: 0.5em;
+    vertical-align: -0.1em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 9999px;
+    animation: btn-spin 0.6s linear infinite;
+}
+
+/* ---- Slim sidebar scrollbar — invisible until the nav itself is hovered, then fades in:
+   near-black in light mode (echoes the ink-900 active pill), gold in dark mode. ---- */
+.scrollbar-gold {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+}
+.scrollbar-gold:hover {
+    scrollbar-color: rgb(28 27 24 / 0.35) transparent;
+}
+.scrollbar-gold::-webkit-scrollbar {
+    width: 3px;
+}
+.scrollbar-gold::-webkit-scrollbar-track {
+    background: transparent;
+}
+.scrollbar-gold::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 9999px;
+    transition: background-color 0.2s ease;
+}
+.scrollbar-gold:hover::-webkit-scrollbar-thumb {
+    background-color: rgb(28 27 24 / 0.35);
+}
+.scrollbar-gold::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(28 27 24 / 0.6);
+}
+.dark .scrollbar-gold:hover {
+    scrollbar-color: rgb(192 163 108 / 0.5) transparent;
+}
+.dark .scrollbar-gold:hover::-webkit-scrollbar-thumb {
+    background-color: rgb(192 163 108 / 0.5);
+}
+.dark .scrollbar-gold::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(192 163 108 / 0.8);
+}
