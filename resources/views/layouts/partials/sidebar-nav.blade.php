@@ -1,10 +1,10 @@
 @php $user = auth()->user(); @endphp
 
 @php
-    $sectionLabelClass = 'overflow-hidden px-3 text-xs font-semibold uppercase tracking-wider text-ink-400 opacity-100 transition-all duration-300 ease-in-out dark:text-sand-500 lg:max-h-0 lg:px-0 lg:opacity-0 lg:group-hover/rail:max-h-5 lg:group-hover/rail:px-3 lg:group-hover/rail:opacity-100';
+    $sectionLabelClass = 'rail-section text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-sand-500';
 @endphp
 
-<nav class="scrollbar-gold flex-1 space-y-6 overflow-y-auto overscroll-contain px-3 py-4">
+<nav class="rail-scroll flex-1 space-y-6 overflow-y-auto overscroll-contain px-3 py-4">
     <div class="space-y-1">
         <p class="{{ $sectionLabelClass }}">Espace de travail</p>
 

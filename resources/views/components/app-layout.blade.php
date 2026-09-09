@@ -27,7 +27,7 @@
 
             <aside
                 :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
-                class="group/rail fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col overflow-x-hidden border-r border-sand-200 bg-white transition-[width,transform,box-shadow] duration-300 ease-in-out dark:border-ink-800 dark:bg-ink-900 lg:w-[76px] lg:translate-x-0 lg:hover:w-64 lg:hover:shadow-2xl lg:hover:shadow-ink-900/10"
+                class="rail fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col overflow-x-hidden border-r border-sand-200 bg-white dark:border-ink-800 dark:bg-ink-900 lg:translate-x-0 lg:hover:shadow-2xl lg:hover:shadow-ink-900/10"
             >
                 <div class="flex h-16 shrink-0 items-center border-b border-sand-200 px-5 dark:border-ink-800 lg:px-[18px]">
                     <a href="{{ route('dashboard') }}">
@@ -44,7 +44,7 @@
                                 <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink-900 text-sm font-semibold text-sand-50 dark:bg-sand-100 dark:text-ink-900">
                                     {{ Illuminate\Support\Str::of(auth()->user()->name)->substr(0, 1)->upper() }}
                                 </span>
-                                <span class="ml-3 min-w-0 max-w-[160px] flex-1 overflow-hidden opacity-100 transition-all duration-300 ease-in-out lg:ml-0 lg:max-w-0 lg:opacity-0 lg:group-hover/rail:ml-3 lg:group-hover/rail:max-w-[160px] lg:group-hover/rail:opacity-100">
+                                <span class="rail-label min-w-0 flex-1">
                                     <span class="block truncate text-sm font-medium text-ink-900 dark:text-sand-50">{{ auth()->user()->name }}</span>
                                     <span class="block truncate text-xs capitalize text-ink-400 dark:text-sand-400">{{ auth()->user()->isAdmin() ? 'Administrateur' : (auth()->user()->isManager() ? 'Manager' : 'Agent') }}</span>
                                 </span>
