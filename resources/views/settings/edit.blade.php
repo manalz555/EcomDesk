@@ -20,8 +20,21 @@
                     @endif
                 </span>
                 <div class="flex-1">
-                    <x-input-label for="logo" value="Logo (PNG, JPG — 2 Mo max)" />
-                    <input id="logo" type="file" name="logo" accept="image/*" class="mt-1 block w-full text-xs text-ink-500 file:mr-3 file:rounded-lg file:border-0 file:bg-sand-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink-700 hover:file:bg-sand-200 dark:text-sand-400 dark:file:bg-ink-800 dark:file:text-sand-200 dark:hover:file:bg-ink-700">
+                    <x-input-label value="Logo" />
+                    {{-- Le controle natif affiche « Choose File / No file chosen » dans la
+                         langue du navigateur, que le CSS ne peut pas traduire. --}}
+                    <div class="mt-1" x-data="{ fichier: null }">
+                        <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-sand-100 px-3 py-1.5 text-xs font-medium text-ink-700 transition hover:bg-sand-200 focus-within:ring-2 focus-within:ring-ink-900 focus-within:ring-offset-2 dark:bg-ink-800 dark:text-sand-200 dark:hover:bg-ink-700 dark:focus-within:ring-sand-400 dark:focus-within:ring-offset-ink-900">
+                            <svg class="h-4 w-4 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                            </svg>
+                            Choisir une image
+                            <input id="logo" type="file" name="logo" accept="image/*" class="sr-only"
+                                   x-on:change="fichier = $event.target.files[0]?.name ?? null">
+                        </label>
+                        <p class="mt-1 truncate text-xs text-ink-400 dark:text-sand-500"
+                           x-text="fichier ?? 'PNG ou JPG, 2 Mo maximum'"></p>
+                    </div>
                     <x-input-error :messages="$errors->get('logo')" class="mt-1.5" />
                 </div>
             </div>

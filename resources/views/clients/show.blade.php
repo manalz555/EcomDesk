@@ -85,8 +85,13 @@
                         </thead>
                         <tbody class="divide-y divide-sand-100 dark:divide-ink-800">
                             @forelse ($client->conversations as $conv)
-                                <tr class="cursor-pointer text-sm hover:bg-sand-50 dark:hover:bg-ink-800" onclick="window.location='{{ route('conversations.show', $conv) }}'">
-                                    <td class="px-5 py-3 font-medium text-ink-900 dark:text-sand-50">{{ $conv->sujet }}</td>
+                                <tr class="text-sm transition hover:bg-sand-50 dark:hover:bg-ink-800/60">
+                                    <td class="px-5 py-3">
+                                        {{-- Vrai lien plutot qu'un onclick sur la ligne :
+                                             accessible au clavier et ouvrable dans un onglet. --}}
+                                        <a href="{{ route('conversations.show', $conv) }}"
+                                           class="font-medium text-ink-900 hover:underline dark:text-sand-50">{{ $conv->sujet }}</a>
+                                    </td>
                                     <td class="px-5 py-3"><x-status-badge :status="$conv->statut" /></td>
                                     <td class="px-5 py-3"><x-priority-badge :priority="$conv->priorite" /></td>
                                     <td class="px-5 py-3 text-ink-500 dark:text-sand-400">{{ $conv->created_at->format('d/m/Y') }}</td>
