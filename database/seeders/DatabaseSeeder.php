@@ -76,6 +76,15 @@ class DatabaseSeeder extends Seeder
             }
         }
 
-        $this->call(WorkspaceSeeder::class);
+        // WorkspaceSeeder pose l'espace de travail (entreprise, equipe, compte
+        // technique de l'assistant, regle d'automatisation) ; DemoDataSeeder
+        // le remplit de trois semaines d'activite realiste, datee par rapport
+        // au jour d'execution. Sans ce second appel, `migrate:fresh --seed`
+        // produisait une demonstration de trois conversations, sans brouillon
+        // ni analytique exploitable.
+        $this->call([
+            WorkspaceSeeder::class,
+            DemoDataSeeder::class,
+        ]);
     }
 }

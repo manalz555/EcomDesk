@@ -5,6 +5,8 @@ namespace Database\Seeders;
 use App\Models\AuditLog;
 use App\Models\Client;
 use App\Models\Company;
+use App\Models\AutomationRule;
+use App\Models\Reponse;
 use App\Models\Conversation;
 use App\Models\Tag;
 use App\Models\User;
@@ -192,6 +194,124 @@ class DemoDataSeeder extends Seeder
             }
         }
 
+        $this->demonstrerLeWidget($clients, $now);
+        $this->laisserUnBrouillonEnAttente($clients, $now);
+
         $this->command?->info("DemoDataSeeder: {$count} conversations réalistes créées.");
+    }
+
+    /**
+     * Reconstitue un echange complet arrive par le widget de chat : le
+     * visiteur ecrit sans compte, un agent lui repond, le visiteur relance.
+     * C'est le seul canal reellement operationnel, il doit etre visible dans
+     * la boite de reception des l'installation.
+     */
+    private function demonstrerLeWidget($clients, Carbon $now): void
+    {
+        $agent = User::where('email', 'agent1@ecomdesk.test')->first()
+            ?? User::where('is_bot', false)->first();
+
+        $visiteur = Client::create([
+            'nom' => 'Visiteur ' . strtoupper(str()->random(4)),
+            'widget_token' => str()->random(40),
+        ]);
+
+        $ouvertureAt = $now->copy()->subHours(5);
+
+        $conversation = new Conversation([
+            'client_id' => $visiteur->id,
+            'agent_id' => $agent->id,
+            'sujet' => 'Livraison possible a Marrakech ?',
+            'contenu' => "Bonjour, est-ce que vous livrez a Marrakech et sous quel delai ?",
+            'canal' => 'live_chat',
+            'categorie' => 'livraison',
+            'priorite' => 'moyenne',
+            'statut' => 'en_cours',
+            'last_message_at' => $ouvertureAt,
+        ]);
+        $conversation->created_at = $ouvertureAt;
+        $conversation->updated_at = $ouvertureAt;
+        $conversation->save();
+
+        // Reponse de l'agent, puis relance du visiteur (is_client = true) :
+        // une conversation peut contenir des messages venant des deux cotes.
+        $echanges = [
+            [12, false, "Bonjour ! Oui, nous livrons a Marrakech en 48h ouvrees. La livraison est offerte des 400 MAD d'achat."],
+            [20, true, "Parfait, merci beaucoup pour votre reactivite !"],
+        ];
+
+        foreach ($echanges as [$minutes, $duClient, $contenu]) {
+            $at = $ouvertureAt->copy()->addMinutes($minutes);
+
+            $message = new Reponse([
+                'conversation_id' => $conversation->id,
+                'agent_id' => $duClient ? null : $agent->id,
+                'contenu' => $contenu,
+                'is_client' => $duClient,
+                'is_draft' => false,
+            ]);
+            $message->created_at = $at;
+            $message->updated_at = $at;
+            $message->save();
+
+            $conversation->update(['last_message_at' => $at]);
+        }
+    }
+
+    /**
+     * Laisse une conversation avec un brouillon genere par l'assistant et non
+     * encore valide. Sans elle, la fonctionnalite phare du projet — la
+     * validation humaine — n'est pas demontrable sur une installation neuve.
+     */
+    private function laisserUnBrouillonEnAttente($clients, Carbon $now): void
+    {
+        $regle = AutomationRule::where('categorie', 'livraison')->first();
+
+        if (! $regle) {
+            return;
+        }
+
+        // La regle est livree active : la chaine d'automatisation se declenche
+        // des la premiere conversation « livraison » creee en demonstration.
+        $regle->update(['enabled' => true]);
+
+        $arriveeAt = $now->copy()->subMinutes(35);
+
+        $conversation = new Conversation([
+            'client_id' => $clients->random()->id,
+            'agent_id' => null,
+            'sujet' => 'Ou en est ma commande #38907 ?',
+            'contenu' => "Bonjour, ma commande devait partir hier. Avez-vous une date d'expedition ?",
+            'canal' => 'whatsapp',
+            'categorie' => 'livraison',
+            'priorite' => 'haute',
+            'statut' => 'nouveau',
+            'last_message_at' => $arriveeAt,
+        ]);
+        $conversation->created_at = $arriveeAt;
+        $conversation->updated_at = $arriveeAt;
+        $conversation->save();
+
+        $brouillonAt = $arriveeAt->copy()->addSeconds(20);
+
+        $brouillon = new Reponse([
+            'conversation_id' => $conversation->id,
+            'agent_id' => $regle->bot_user_id,
+            'contenu' => "Bonjour, merci pour votre message concernant votre commande #38907. "
+                . "Je verifie immediatement sa date d'expedition aupres de notre entrepot et "
+                . "je reviens vers vous dans la journee.",
+            'is_draft' => true,
+        ]);
+        $brouillon->created_at = $brouillonAt;
+        $brouillon->updated_at = $brouillonAt;
+        $brouillon->save();
+
+        AuditLog::create([
+            'actor_id' => $regle->bot_user_id,
+            'action' => 'conversation.draft_generated',
+            'subject_type' => $conversation->getMorphClass(),
+            'subject_id' => $conversation->id,
+            'description' => "Brouillon de réponse généré par la règle « {$regle->name} », en attente de validation.",
+        ]);
     }
 }

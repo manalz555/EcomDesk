@@ -132,7 +132,30 @@
                     @csrf
                     <x-textarea-input name="contenu" rows="3" placeholder="Écrire une réponse…" required></x-textarea-input>
                     <div class="mt-2 flex items-center justify-between gap-3">
-                        <input type="file" name="pieces_jointes[]" multiple class="block flex-1 text-xs text-ink-500 file:mr-3 file:rounded-lg file:border-0 file:bg-sand-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-ink-700 hover:file:bg-sand-200 dark:text-sand-400 dark:file:bg-ink-800 dark:file:text-sand-200 dark:hover:file:bg-ink-700">
+                        {{-- Le controle natif affiche « Choose Files / No file chosen » dans la
+                             langue du navigateur, que le CSS ne peut pas traduire. On masque
+                             donc l'input (sans le retirer du formulaire ni du clavier) et on
+                             habille un label a la place. --}}
+                        <div class="min-w-0 flex-1" x-data="{ fichiers: [] }">
+                            <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-sand-100 px-3 py-1.5 text-xs font-medium text-ink-700 transition hover:bg-sand-200 focus-within:ring-2 focus-within:ring-ink-900 focus-within:ring-offset-2 dark:bg-ink-800 dark:text-sand-200 dark:hover:bg-ink-700 dark:focus-within:ring-sand-400 dark:focus-within:ring-offset-ink-900">
+                                <svg class="h-4 w-4 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
+                                </svg>
+                                Joindre un fichier
+                                <input
+                                    type="file"
+                                    name="pieces_jointes[]"
+                                    multiple
+                                    class="sr-only"
+                                    x-on:change="fichiers = Array.from($event.target.files).map(f => f.name)"
+                                >
+                            </label>
+
+                            <p class="mt-1 truncate text-xs text-ink-400 dark:text-sand-500"
+                               x-text="fichiers.length
+                                    ? (fichiers.length === 1 ? fichiers[0] : fichiers.length + ' fichiers sélectionnés')
+                                    : '5 fichiers maximum, 10 Mo chacun'"></p>
+                        </div>
                         <x-primary-button class="shrink-0">
                             <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.126A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.876L5.999 12Zm0 0h7.5" /></svg>
                             Envoyer
