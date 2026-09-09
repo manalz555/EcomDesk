@@ -98,6 +98,9 @@
                 const isDark = document.documentElement.classList.contains('dark');
                 const gridColor = isDark ? 'rgba(231,230,228,0.08)' : 'rgba(14,13,11,0.06)';
                 const textColor = isDark ? '#A8A5A0' : '#7C7871';
+                // Couleur du fond des cartes : sert de lisere entre les segments.
+                const surface = isDark ? '#0E0D0B' : '#FFFFFF';
+                const teinteNeutre = isDark ? '#5A564F' : '#A8A5A0';
 
                 Chart.defaults.font.family = 'Figtree, ui-sans-serif, system-ui, sans-serif';
                 Chart.defaults.color = textColor;
@@ -125,14 +128,30 @@
                     },
                 });
 
+                // Palette categorielle : sept teintes distinctes, declinees pour chaque
+                // fond. L'ancienne serie etait une rampe de bruns — deux segments voisins
+                // n'y etaient separes que de 7 unites de difference perceptuelle, sous le
+                // plancher de 15 : on ne les distinguait pas, meme avec une vision normale.
+                const COULEURS_CANAL = isDark
+                    ? { email: '#3987e5', whatsapp: '#d95926', instagram: '#199e70', messenger: '#c98500',
+                        telegram: '#d55181', live_chat: '#008300', formulaire: '#9085e9' }
+                    : { email: '#2a78d6', whatsapp: '#eb6834', instagram: '#1baf7a', messenger: '#eda100',
+                        telegram: '#e87ba4', live_chat: '#008300', formulaire: '#4a3aa7' };
+
+                // Chaque couleur suit son canal, jamais sa position : si un canal n'a
+                // recu aucun message, les autres gardent la leur.
+                const canaux = @json(array_keys($parCanal->toArray()));
+
                 new Chart(document.getElementById('chart-canal'), {
                     type: 'doughnut',
                     data: {
-                        labels: @json(array_keys($parCanal->toArray())),
+                        labels: canaux.map(c => c.replace('_', ' ')),
                         datasets: [{
                             data: @json(array_values($parCanal->toArray())),
-                            backgroundColor: ['#0E0D0B', '#87693D', '#C0A36C', '#A8A5A0', '#E4D5B7', '#5A564F', '#D3BC8E'],
-                            borderWidth: 0,
+                            backgroundColor: canaux.map(c => COULEURS_CANAL[c] ?? teinteNeutre),
+                            // Un liseré de la couleur du fond separe les segments voisins.
+                            borderColor: surface,
+                            borderWidth: 2,
                         }],
                     },
                     options: { plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12 } } } },
@@ -159,14 +178,23 @@
                     },
                 });
 
+                // Couleurs d'etat, reservees aux statuts et jamais reutilisees comme
+                // teintes de serie. Elles reprennent celles du tableau de bord, pour
+                // qu'un statut garde la meme couleur d'un ecran a l'autre.
+                const COULEURS_STATUT = {
+                    nouveau: '#0EA5E9', en_cours: '#F59E0B', en_attente: '#FB923C', resolu: '#10B981',
+                };
+                const statuts = @json(array_keys($parStatut->toArray()));
+
                 new Chart(document.getElementById('chart-statut'), {
                     type: 'doughnut',
                     data: {
-                        labels: @json(array_keys($parStatut->toArray())),
+                        labels: statuts.map(s => s.replace('_', ' ')),
                         datasets: [{
                             data: @json(array_values($parStatut->toArray())),
-                            backgroundColor: ['#0EA5E9', '#F59E0B', '#A8A5A0', '#10B981'],
-                            borderWidth: 0,
+                            backgroundColor: statuts.map(s => COULEURS_STATUT[s] ?? teinteNeutre),
+                            borderColor: surface,
+                            borderWidth: 2,
                         }],
                     },
                     options: { plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12 } } } },
