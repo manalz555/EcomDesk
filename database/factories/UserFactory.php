@@ -29,8 +29,35 @@ class UserFactory extends Factory
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
+            'role' => 'agent',
+            'actif' => true,
+            'is_bot' => false,
             'remember_token' => Str::random(10),
         ];
+    }
+
+    /** Compte administrateur : gouvernance complete de la plateforme. */
+    public function admin(): static
+    {
+        return $this->state(fn () => ['role' => 'admin']);
+    }
+
+    /** Compte manager : supervision d'equipe, sans les reglages sensibles. */
+    public function manager(): static
+    {
+        return $this->state(fn () => ['role' => 'manager']);
+    }
+
+    /** Compte desactive : ne doit plus pouvoir acceder a l'application (RG2). */
+    public function inactif(): static
+    {
+        return $this->state(fn () => ['actif' => false]);
+    }
+
+    /** Compte technique de l'assistant IA : acteur systeme, jamais un humain. */
+    public function bot(): static
+    {
+        return $this->state(fn () => ['is_bot' => true]);
     }
 
     /**

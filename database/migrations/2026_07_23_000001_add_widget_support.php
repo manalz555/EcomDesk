@@ -25,8 +25,15 @@ return new class extends Migration
         });
 
         // Client messages have no agent author: drop the NOT NULL constraint.
-        // Raw SQL because ->change() on a foreign-keyed column is unreliable.
-        DB::statement('ALTER TABLE reponses MODIFY agent_id BIGINT UNSIGNED NULL');
+        // Raw SQL on MySQL because ->change() on a foreign-keyed column is
+        // unreliable there; the portable Blueprint form is used elsewhere.
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE reponses MODIFY agent_id BIGINT UNSIGNED NULL');
+        } else {
+            Schema::table('reponses', function (Blueprint $table) {
+                $table->foreignId('agent_id')->nullable()->change();
+            });
+        }
     }
 
     public function down(): void
@@ -39,6 +46,12 @@ return new class extends Migration
             $table->dropColumn('is_client');
         });
 
-        DB::statement('ALTER TABLE reponses MODIFY agent_id BIGINT UNSIGNED NOT NULL');
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE reponses MODIFY agent_id BIGINT UNSIGNED NOT NULL');
+        } else {
+            Schema::table('reponses', function (Blueprint $table) {
+                $table->foreignId('agent_id')->nullable(false)->change();
+            });
+        }
     }
 };

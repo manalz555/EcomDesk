@@ -12,13 +12,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement('ALTER TABLE channel_integrations MODIFY COLUMN config TEXT NULL');
-        DB::statement('ALTER TABLE workspace_settings MODIFY COLUMN smtp_config TEXT NULL');
+        // Contrainte propre a MySQL : SQLite stocke le JSON comme du TEXT et
+        // n'applique aucune validation, la conversion y est donc inutile.
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE channel_integrations MODIFY COLUMN config TEXT NULL');
+            DB::statement('ALTER TABLE workspace_settings MODIFY COLUMN smtp_config TEXT NULL');
+        }
     }
 
     public function down(): void
     {
-        DB::statement('ALTER TABLE channel_integrations MODIFY COLUMN config JSON NULL');
-        DB::statement('ALTER TABLE workspace_settings MODIFY COLUMN smtp_config JSON NULL');
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('ALTER TABLE channel_integrations MODIFY COLUMN config JSON NULL');
+            DB::statement('ALTER TABLE workspace_settings MODIFY COLUMN smtp_config JSON NULL');
+        }
     }
 };
