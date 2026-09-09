@@ -56,6 +56,10 @@ class ConversationController extends Controller
         }
 
         $conversations = Conversation::with(['client', 'agent', 'tags'])
+            // Une conversation dont le brouillon IA attend une validation
+            // demande une action : la liste doit le signaler sans qu'on ait
+            // a ouvrir chaque fiche.
+            ->withCount(['reponses as brouillons_en_attente' => fn ($q) => $q->where('is_draft', true)])
             ->recherche($request->q)
             ->when($request->statut, fn ($q) => $q->where('statut', $request->statut))
             ->when($request->priorite, fn ($q) => $q->where('priorite', $request->priorite))

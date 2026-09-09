@@ -1,17 +1,44 @@
+@php
+    // Un seul fil chronologique plutot que trois blocs separes : le message
+    // d'ouverture, les reponses et les notes internes appartiennent a la meme
+    // histoire. Les notes restent visuellement distinctes — elles ne partent
+    // jamais chez le client — mais gardent leur place dans le temps.
+    $fil = $conversation->reponses
+        ->where('is_draft', false)
+        ->map(fn ($r) => ['genre' => $r->is_client ? 'client' : 'agent', 'at' => $r->created_at, 'objet' => $r])
+        ->concat(
+            $conversation->notes->map(fn ($n) => ['genre' => 'note', 'at' => $n->created_at, 'objet' => $n])
+        )
+        ->sortBy('at')
+        ->values();
+
+    $brouillons = $conversation->reponses->where('is_draft', true);
+
+    $initiale = fn (?string $nom) => mb_strtoupper(mb_substr(trim((string) $nom) ?: '?', 0, 1));
+@endphp
+
 <x-app-layout :title="$conversation->sujet">
     <x-slot name="header">
-        <x-page-header :title="$conversation->sujet" />
+        <x-page-header
+            :title="$conversation->sujet"
+            :subtitle="$conversation->client->nom_complet
+                .' · '.ucfirst(str_replace('_', ' ', $conversation->canal))
+                .' · ouverte le '.$conversation->created_at->format('d/m/Y à H:i')"
+        />
     </x-slot>
 
-    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div class="space-y-4 lg:col-span-2">
-            <x-card>
-                <div class="flex items-start justify-between gap-3">
-                    <p class="text-sm text-ink-500 dark:text-sand-400">
-                        {{ $conversation->client->nom_complet }} &middot;
-                        <span class="capitalize">{{ str_replace('_', ' ', $conversation->canal) }}</span> &middot;
-                        {{ $conversation->created_at->format('d/m/Y H:i') }}
-                    </p>
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+
+        {{-- ============================================ LE FIL ============ --}}
+        <div class="overflow-hidden rounded-xl border border-sand-200 bg-white dark:border-ink-800 dark:bg-ink-900">
+
+            {{-- Bandeau : etat, prise en charge, etiquettes --}}
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-sand-200 px-5 py-3.5 dark:border-ink-800">
+                <x-status-badge :status="$conversation->statut" />
+                <x-priority-badge :priority="$conversation->priorite" />
+                <span class="text-xs text-ink-400 dark:text-sand-500">{{ ucfirst($conversation->categorie) }}</span>
+
+                <div class="ms-auto flex items-center gap-2">
                     @if (! $conversation->agent_id)
                         <form method="POST" action="{{ route('conversations.assign', $conversation) }}">
                             @csrf
@@ -20,179 +47,240 @@
                                 Prendre en charge
                             </x-secondary-button>
                         </form>
+                    @else
+                        <span class="text-xs text-ink-400 dark:text-sand-500">
+                            Suivie par <span class="font-medium text-ink-700 dark:text-sand-200">{{ $conversation->agent->name }}</span>
+                        </span>
                     @endif
                 </div>
-                <p class="mt-4 whitespace-pre-line text-sm text-ink-900 dark:text-sand-50">{{ $conversation->contenu }}</p>
+            </div>
 
-                <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-sand-200 pt-4 dark:border-ink-800">
-                    @foreach ($conversation->tags as $tag)
-                        <span class="inline-flex items-center gap-1.5 rounded-full py-1 pl-2.5 pr-1 text-xs font-medium" style="background-color: {{ $tag->color }}22; color: {{ $tag->color }};">
-                            {{ $tag->name }}
-                            <form method="POST" action="{{ route('conversations.tags.destroy', [$conversation, $tag]) }}">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="rounded-full p-0.5 hover:bg-black/10">
-                                    <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-                                </button>
-                            </form>
-                        </span>
-                    @endforeach
-
-                    <div x-data="{ adding: false }" class="inline-flex items-center">
-                        <button type="button" x-show="!adding" @click="adding = true; $nextTick(() => $refs.tagInput.focus())" class="inline-flex items-center gap-1 rounded-full border border-dashed border-sand-300 px-2.5 py-1 text-xs font-medium text-ink-500 hover:border-ink-400 hover:text-ink-700 dark:border-ink-700 dark:text-sand-400">
-                            <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                            Étiquette
-                        </button>
-                        <form x-show="adding" x-cloak method="POST" action="{{ route('conversations.tags.store', $conversation) }}" @click.outside="adding = false" class="inline-flex items-center gap-1">
-                            @csrf
-                            <input x-ref="tagInput" type="text" name="nom" list="tags-list" placeholder="Nom de l'étiquette" class="w-36 rounded-full border-sand-300 bg-white px-2.5 py-1 text-xs text-ink-900 focus:border-ink-500 focus:ring-ink-500 dark:border-ink-700 dark:bg-ink-800 dark:text-sand-50" required>
-                            <datalist id="tags-list">
-                                @foreach ($tags as $tag)
-                                    <option value="{{ $tag->name }}">
-                                @endforeach
-                            </datalist>
-                            <button type="submit" class="text-xs font-medium text-ink-600 dark:text-sand-300">Ajouter</button>
+            {{-- Etiquettes --}}
+            <div class="flex flex-wrap items-center gap-2 border-b border-sand-200 px-5 py-2.5 dark:border-ink-800">
+                @foreach ($conversation->tags as $tag)
+                    <span class="inline-flex items-center gap-1.5 rounded-full py-1 pl-2.5 pr-1 text-xs font-medium" style="background-color: {{ $tag->color }}22; color: {{ $tag->color }};">
+                        {{ $tag->name }}
+                        <form method="POST" action="{{ route('conversations.tags.destroy', [$conversation, $tag]) }}">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="rounded-full p-0.5 hover:bg-black/10" aria-label="Retirer l'étiquette {{ $tag->name }}">
+                                <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                            </button>
                         </form>
-                    </div>
+                    </span>
+                @endforeach
+
+                <div x-data="{ ajout: false }" class="inline-flex items-center">
+                    <button type="button" x-show="!ajout" @click="ajout = true; $nextTick(() => $refs.champTag.focus())" class="inline-flex items-center gap-1 rounded-full border border-dashed border-sand-300 px-2.5 py-1 text-xs font-medium text-ink-500 transition hover:border-ink-400 hover:text-ink-700 dark:border-ink-700 dark:text-sand-400 dark:hover:border-sand-500 dark:hover:text-sand-200">
+                        <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                        Étiquette
+                    </button>
+                    <form x-show="ajout" x-cloak method="POST" action="{{ route('conversations.tags.store', $conversation) }}" @click.outside="ajout = false" class="inline-flex items-center gap-1">
+                        @csrf
+                        <input x-ref="champTag" type="text" name="nom" list="liste-tags" placeholder="Nom de l'étiquette" class="w-36 rounded-full border-sand-300 bg-white px-2.5 py-1 text-xs text-ink-900 focus:border-ink-500 focus:ring-ink-500 dark:border-ink-700 dark:bg-ink-800 dark:text-sand-50" required>
+                        <datalist id="liste-tags">
+                            @foreach ($tags as $tag)
+                                <option value="{{ $tag->name }}">
+                            @endforeach
+                        </datalist>
+                        <button type="submit" class="text-xs font-medium text-ink-600 dark:text-sand-300">Ajouter</button>
+                    </form>
                 </div>
-            </x-card>
+            </div>
 
-            @php $drafts = $conversation->reponses->where('is_draft', true); @endphp
-            @if ($drafts->isNotEmpty())
-                <x-card class="border-sand-400 dark:border-sand-500">
-                    <div class="flex items-center gap-2">
-                        <svg class="h-5 w-5 text-sand-600 dark:text-sand-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" /></svg>
-                        <h2 class="text-sm font-semibold text-ink-900 dark:text-sand-50">Brouillon généré par IA — en attente de validation</h2>
+            {{-- ------------------------------------------------ messages --}}
+            <ol class="divide-y divide-sand-100 dark:divide-ink-800">
+
+                {{-- Message d'ouverture : c'est le premier message du fil, pas un encart a part. --}}
+                <li class="flex gap-3.5 px-5 py-4">
+                    <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sand-200 text-xs font-semibold text-ink-700 dark:bg-ink-700 dark:text-sand-200">
+                        {{ $initiale($conversation->client->prenom ?: $conversation->client->nom) }}
+                    </span>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex flex-wrap items-baseline gap-x-2">
+                            <span class="text-sm font-semibold text-ink-900 dark:text-sand-50">{{ $conversation->client->nom_complet }}</span>
+                            <span class="text-[11px] font-medium uppercase tracking-wide text-ink-400 dark:text-sand-500">Client</span>
+                            <span class="ms-auto text-xs text-ink-400 dark:text-sand-500">{{ $conversation->created_at->format('d/m/Y H:i') }}</span>
+                        </div>
+                        <p class="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-ink-800 dark:text-sand-100">{{ $conversation->contenu }}</p>
                     </div>
-                    <p class="mt-1 text-xs text-ink-500 dark:text-sand-400">
-                        Rien n'est envoyé au client tant que vous n'avez pas validé (ou modifié puis validé) ce brouillon.
-                    </p>
+                </li>
 
-                    @foreach ($drafts as $draft)
-                        <div class="mt-4">
-                            <form id="draft-approve-{{ $draft->id }}" method="POST" action="{{ route('conversations.drafts.approve', [$conversation, $draft]) }}">
+                @foreach ($fil as $entree)
+                    @php $objet = $entree['objet']; @endphp
+
+                    @if ($entree['genre'] === 'note')
+                        {{-- Note interne : meme place dans le temps, mais elle ne quitte jamais l'equipe. --}}
+                        <li class="flex gap-3.5 bg-amber-50/70 px-5 py-4 dark:bg-amber-950/25">
+                            <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-semibold text-amber-900 dark:bg-amber-900 dark:text-amber-200">
+                                {{ $initiale($objet->user?->name) }}
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-baseline gap-x-2">
+                                    <span class="text-sm font-semibold text-amber-900 dark:text-amber-200">{{ $objet->user?->name ?? 'Équipe' }}</span>
+                                    <span class="text-[11px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">Note interne · invisible du client</span>
+                                    <span class="ms-auto text-xs text-amber-600/80 dark:text-amber-500/80">{{ $objet->created_at->format('d/m/Y H:i') }}</span>
+                                </div>
+                                <p class="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-amber-900 dark:text-amber-100">{{ $objet->contenu }}</p>
+                            </div>
+                        </li>
+
+                    @elseif ($entree['genre'] === 'client')
+                        <li class="flex gap-3.5 px-5 py-4">
+                            <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sand-200 text-xs font-semibold text-ink-700 dark:bg-ink-700 dark:text-sand-200">
+                                {{ $initiale($conversation->client->prenom ?: $conversation->client->nom) }}
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-baseline gap-x-2">
+                                    <span class="text-sm font-semibold text-ink-900 dark:text-sand-50">{{ $conversation->client->nom_complet }}</span>
+                                    <span class="text-[11px] font-medium uppercase tracking-wide text-ink-400 dark:text-sand-500">Client</span>
+                                    <span class="ms-auto text-xs text-ink-400 dark:text-sand-500">{{ $objet->created_at->format('d/m/Y H:i') }}</span>
+                                </div>
+                                <p class="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-ink-800 dark:text-sand-100">{{ $objet->contenu }}</p>
+                            </div>
+                        </li>
+
+                    @else
+                        {{-- Reponse envoyee par l'equipe. --}}
+                        <li class="flex gap-3.5 px-5 py-4">
+                            <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink-900 text-xs font-semibold text-sand-50 dark:bg-sand-100 dark:text-ink-900">
+                                {{ $initiale($objet->agent?->name) }}
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-baseline gap-x-2">
+                                    <span class="text-sm font-semibold text-ink-900 dark:text-sand-50">{{ $objet->agent?->name ?? 'Agent' }}</span>
+                                    @if ($objet->agent?->is_bot)
+                                        <span class="text-[11px] font-medium uppercase tracking-wide text-sand-700 dark:text-sand-400">Assistant</span>
+                                    @endif
+                                    <span class="ms-auto text-xs text-ink-400 dark:text-sand-500">{{ $objet->created_at->format('d/m/Y H:i') }}</span>
+                                </div>
+                                <p class="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-ink-800 dark:text-sand-100">{{ $objet->contenu }}</p>
+
+                                @if ($objet->attachments->isNotEmpty())
+                                    <div class="mt-2.5 flex flex-wrap gap-2">
+                                        @foreach ($objet->attachments as $piece)
+                                            <a href="{{ route('conversations.attachments.download', [$conversation, $piece]) }}" class="inline-flex items-center gap-1.5 rounded-lg border border-sand-200 px-2.5 py-1.5 text-xs font-medium text-ink-600 transition hover:bg-sand-50 dark:border-ink-700 dark:text-sand-300 dark:hover:bg-ink-800">
+                                                <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" /></svg>
+                                                {{ $piece->original_name }}
+                                                <span class="text-ink-400 dark:text-sand-500">{{ $piece->humanSize() }}</span>
+                                            </a>
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </div>
+                        </li>
+                    @endif
+                @endforeach
+
+                {{-- ------------------------------------------ brouillon IA --}}
+                @foreach ($brouillons as $brouillon)
+                    <li class="px-5 py-4">
+                        <div class="rounded-lg border border-dashed border-sand-400 bg-sand-50 p-4 dark:border-ink-600 dark:bg-ink-950/40">
+                            <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <svg class="h-4 w-4 shrink-0 text-sand-700 dark:text-sand-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" /></svg>
+                                <span class="text-sm font-semibold text-ink-900 dark:text-sand-50">Brouillon proposé par l'assistant</span>
+                                <span class="rounded-full bg-sand-200 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-sand-900 dark:bg-ink-700 dark:text-sand-200">Non envoyé</span>
+                            </div>
+                            <p class="mt-1 text-xs text-ink-500 dark:text-sand-400">
+                                Le client ne verra rien tant que vous n'aurez pas validé. Vous pouvez corriger le texte avant de l'envoyer.
+                            </p>
+
+                            <form id="valider-brouillon-{{ $brouillon->id }}" method="POST" action="{{ route('conversations.drafts.approve', [$conversation, $brouillon]) }}" class="mt-3">
                                 @csrf
-                                <x-textarea-input name="contenu" rows="3">{{ $draft->contenu }}</x-textarea-input>
+                                <x-textarea-input name="contenu" rows="4">{{ $brouillon->contenu }}</x-textarea-input>
                             </form>
 
-                            <div class="mt-2 flex items-center gap-2">
-                                <x-primary-button type="submit" form="draft-approve-{{ $draft->id }}">
+                            <div class="mt-3 flex flex-wrap items-center gap-3">
+                                <x-primary-button type="submit" form="valider-brouillon-{{ $brouillon->id }}">
                                     <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
                                     Valider et envoyer
                                 </x-primary-button>
 
-                                <form method="POST" action="{{ route('conversations.drafts.discard', [$conversation, $draft]) }}" onsubmit="return confirm('Rejeter ce brouillon ? Il ne sera pas envoyé.');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-sm font-medium text-rose-600 hover:underline dark:text-rose-400">
-                                        Rejeter
-                                    </button>
+                                <form method="POST" action="{{ route('conversations.drafts.discard', [$conversation, $brouillon]) }}" onsubmit="return confirm('Rejeter ce brouillon ? Il ne sera pas envoyé au client.');">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="text-sm font-medium text-rose-600 hover:underline dark:text-rose-400">Rejeter</button>
                                 </form>
                             </div>
                         </div>
-                    @endforeach
-                </x-card>
-            @endif
+                    </li>
+                @endforeach
+            </ol>
 
-            <x-card>
-                <h2 class="text-sm font-semibold text-ink-900 dark:text-sand-50">Historique des échanges</h2>
-                <div class="mt-4 space-y-3">
-                    @forelse ($conversation->reponses->where('is_draft', false) as $rep)
-                        {{-- Message du client (ex : widget de chat) vs réponse d'un agent : fond distinct + badge. --}}
-                        <div class="rounded-lg border p-3 {{ $rep->is_client ? 'border-sand-300 bg-sand-100/70 dark:border-ink-600 dark:bg-ink-800/70' : 'border-sand-200 dark:border-ink-700' }}">
-                            <div class="mb-1 flex items-center justify-between text-xs text-ink-400 dark:text-sand-500">
-                                <span class="flex items-center gap-2 font-semibold text-ink-700 dark:text-sand-200">
-                                    @if ($rep->is_client)
-                                        {{ $conversation->client->nom_complet }}
-                                        <span class="rounded-full bg-ink-900 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sand-100 dark:bg-sand-100 dark:text-ink-900">Client</span>
-                                    @else
-                                        {{ $rep->agent?->name ?? 'Agent' }}
-                                    @endif
-                                </span>
-                                <span>{{ $rep->created_at->format('d/m/Y H:i') }}</span>
-                            </div>
-                            <p class="whitespace-pre-line text-sm text-ink-800 dark:text-sand-100">{{ $rep->contenu }}</p>
+            {{-- ------------------------------------------------ composeur --}}
+            {{-- Une seule zone de saisie, deux destinations : le client, ou
+                 seulement l'equipe. L'onglet actif change la couleur du bloc
+                 pour qu'on ne se trompe jamais de destinataire. --}}
+            <div x-data="{ onglet: 'reponse' }"
+                 class="border-t border-sand-200 dark:border-ink-800"
+                 :class="onglet === 'note' ? 'bg-amber-50/70 dark:bg-amber-950/25' : 'bg-sand-50/60 dark:bg-ink-950/30'">
 
-                            @if ($rep->attachments->isNotEmpty())
-                                <div class="mt-2 flex flex-wrap gap-2">
-                                    @foreach ($rep->attachments as $piece)
-                                        <a href="{{ route('conversations.attachments.download', [$conversation, $piece]) }}" class="inline-flex items-center gap-1.5 rounded-lg border border-sand-200 bg-sand-50 px-2.5 py-1.5 text-xs font-medium text-ink-600 hover:bg-sand-100 dark:border-ink-700 dark:bg-ink-800 dark:text-sand-300 dark:hover:bg-ink-700">
-                                            <svg class="h-3.5 w-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" /></svg>
-                                            {{ $piece->original_name }} ({{ $piece->humanSize() }})
-                                        </a>
-                                    @endforeach
-                                </div>
-                            @endif
-                        </div>
-                    @empty
-                        <p class="text-sm text-ink-400 dark:text-sand-500">Aucune réponse pour le moment.</p>
-                    @endforelse
+                <div class="flex gap-1 px-5 pt-3">
+                    <button type="button" @click="onglet = 'reponse'"
+                            class="rounded-t-lg px-3 py-2 text-sm font-medium transition"
+                            :class="onglet === 'reponse'
+                                ? 'bg-white text-ink-900 shadow-soft dark:bg-ink-900 dark:text-sand-50'
+                                : 'text-ink-500 hover:text-ink-800 dark:text-sand-400 dark:hover:text-sand-200'">
+                        Répondre au client
+                    </button>
+                    <button type="button" @click="onglet = 'note'"
+                            class="rounded-t-lg px-3 py-2 text-sm font-medium transition"
+                            :class="onglet === 'note'
+                                ? 'bg-white text-amber-900 shadow-soft dark:bg-ink-900 dark:text-amber-200'
+                                : 'text-ink-500 hover:text-ink-800 dark:text-sand-400 dark:hover:text-sand-200'">
+                        Note interne
+                    </button>
                 </div>
 
-                <form method="POST" action="{{ route('conversations.reponses.store', $conversation) }}" class="mt-4" enctype="multipart/form-data">
+                {{-- Reponse au client --}}
+                <form x-show="onglet === 'reponse'" method="POST" action="{{ route('conversations.reponses.store', $conversation) }}" class="px-5 pb-5 pt-3" enctype="multipart/form-data">
                     @csrf
-                    <x-textarea-input name="contenu" rows="3" placeholder="Écrire une réponse…" required></x-textarea-input>
-                    <div class="mt-2 flex items-center justify-between gap-3">
+                    <x-textarea-input name="contenu" rows="3" placeholder="Écrire une réponse au client…" required></x-textarea-input>
+
+                    <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
                         {{-- Le controle natif affiche « Choose Files / No file chosen » dans la
-                             langue du navigateur, que le CSS ne peut pas traduire. On masque
-                             donc l'input (sans le retirer du formulaire ni du clavier) et on
-                             habille un label a la place. --}}
+                             langue du navigateur, que le CSS ne peut pas traduire. On le masque
+                             (sans le retirer du formulaire ni du clavier) et on habille un label. --}}
                         <div class="min-w-0 flex-1" x-data="{ fichiers: [] }">
                             <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-sand-100 px-3 py-1.5 text-xs font-medium text-ink-700 transition hover:bg-sand-200 focus-within:ring-2 focus-within:ring-ink-900 focus-within:ring-offset-2 dark:bg-ink-800 dark:text-sand-200 dark:hover:bg-ink-700 dark:focus-within:ring-sand-400 dark:focus-within:ring-offset-ink-900">
                                 <svg class="h-4 w-4 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13" />
                                 </svg>
                                 Joindre un fichier
-                                <input
-                                    type="file"
-                                    name="pieces_jointes[]"
-                                    multiple
-                                    class="sr-only"
-                                    x-on:change="fichiers = Array.from($event.target.files).map(f => f.name)"
-                                >
+                                <input type="file" name="pieces_jointes[]" multiple class="sr-only"
+                                       x-on:change="fichiers = Array.from($event.target.files).map(f => f.name)">
                             </label>
-
                             <p class="mt-1 truncate text-xs text-ink-400 dark:text-sand-500"
                                x-text="fichiers.length
                                     ? (fichiers.length === 1 ? fichiers[0] : fichiers.length + ' fichiers sélectionnés')
                                     : '5 fichiers maximum, 10 Mo chacun'"></p>
                         </div>
+
                         <x-primary-button class="shrink-0">
                             <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.126A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.876L5.999 12Zm0 0h7.5" /></svg>
-                            Envoyer
+                            Envoyer au client
                         </x-primary-button>
                     </div>
                 </form>
-            </x-card>
 
-            <x-card>
-                <h2 class="text-sm font-semibold text-ink-900 dark:text-sand-50">Notes internes</h2>
-                <p class="text-xs text-ink-400 dark:text-sand-500">Visibles uniquement par l'équipe, jamais par le client.</p>
-                <div class="mt-4 space-y-3">
-                    @forelse ($conversation->notes as $note)
-                        <div class="rounded-lg bg-amber-50 p-3 dark:bg-amber-950/40">
-                            <div class="mb-1 flex items-center justify-between text-xs text-amber-700 dark:text-amber-400">
-                                <span class="font-semibold">{{ $note->user->name }}</span>
-                                <span>{{ $note->created_at->format('d/m/Y H:i') }}</span>
-                            </div>
-                            <p class="whitespace-pre-line text-sm text-amber-900 dark:text-amber-200">{{ $note->contenu }}</p>
-                        </div>
-                    @empty
-                        <p class="text-sm text-ink-400 dark:text-sand-500">Aucune note pour le moment.</p>
-                    @endforelse
-                </div>
-                <form method="POST" action="{{ route('conversations.notes.store', $conversation) }}" class="mt-4">
+                {{-- Note interne --}}
+                <form x-show="onglet === 'note'" x-cloak method="POST" action="{{ route('conversations.notes.store', $conversation) }}" class="px-5 pb-5 pt-3">
                     @csrf
-                    <x-textarea-input name="contenu" rows="2" placeholder="Ajouter une note interne…" required></x-textarea-input>
-                    <div class="mt-2">
-                        <x-secondary-button type="submit">Ajouter la note</x-secondary-button>
+                    <x-textarea-input name="contenu" rows="3" placeholder="Note visible uniquement par l'équipe…" required></x-textarea-input>
+
+                    <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+                        <p class="text-xs text-amber-700 dark:text-amber-400">
+                            Cette note reste dans le fil, mais n'est jamais transmise au client.
+                        </p>
+                        <x-secondary-button type="submit" class="shrink-0">Ajouter la note</x-secondary-button>
                     </div>
                 </form>
-            </x-card>
+            </div>
         </div>
 
-        <div class="space-y-4">
+        {{-- ============================================ LE RAIL =========== --}}
+        <aside class="space-y-4">
             <x-card>
                 <h2 class="text-sm font-semibold text-ink-900 dark:text-sand-50">Suivi</h2>
+
                 <form method="POST" action="{{ route('conversations.statut', $conversation) }}" class="mt-3">
                     @csrf @method('PATCH')
                     <x-input-label value="Statut" />
@@ -202,6 +290,7 @@
                         @endforeach
                     </x-select-input>
                 </form>
+
                 <form method="POST" action="{{ route('conversations.priorite', $conversation) }}" class="mt-4">
                     @csrf @method('PATCH')
                     <x-input-label value="Priorité" />
@@ -238,16 +327,42 @@
             </x-card>
 
             <x-card>
-                <h2 class="text-sm font-semibold text-ink-900 dark:text-sand-50">Détails</h2>
-                <p class="mt-3 text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-sand-500">Catégorie</p>
-                <p class="mt-1 text-sm capitalize text-ink-900 dark:text-sand-50">{{ $conversation->categorie }}</p>
-                <p class="mt-3 text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-sand-500">Agent assigné</p>
-                <p class="mt-1 text-sm text-ink-900 dark:text-sand-50">{{ $conversation->agent->name ?? 'Non assignée' }}</p>
+                <h2 class="text-sm font-semibold text-ink-900 dark:text-sand-50">Le client</h2>
+
+                <dl class="mt-3 space-y-2.5 text-sm">
+                    <div class="flex items-baseline justify-between gap-3">
+                        <dt class="shrink-0 text-xs uppercase tracking-wider text-ink-400 dark:text-sand-500">Nom</dt>
+                        <dd class="truncate text-ink-900 dark:text-sand-50">{{ $conversation->client->nom_complet }}</dd>
+                    </div>
+                    @if ($conversation->client->email)
+                        <div class="flex items-baseline justify-between gap-3">
+                            <dt class="shrink-0 text-xs uppercase tracking-wider text-ink-400 dark:text-sand-500">Email</dt>
+                            <dd class="truncate text-ink-700 dark:text-sand-200">{{ $conversation->client->email }}</dd>
+                        </div>
+                    @endif
+                    @if ($conversation->client->telephone)
+                        <div class="flex items-baseline justify-between gap-3">
+                            <dt class="shrink-0 text-xs uppercase tracking-wider text-ink-400 dark:text-sand-500">Téléphone</dt>
+                            <dd class="truncate text-ink-700 dark:text-sand-200">{{ $conversation->client->telephone }}</dd>
+                        </div>
+                    @endif
+                    @if ($conversation->client->company)
+                        <div class="flex items-baseline justify-between gap-3">
+                            <dt class="shrink-0 text-xs uppercase tracking-wider text-ink-400 dark:text-sand-500">Entreprise</dt>
+                            <dd class="truncate text-ink-700 dark:text-sand-200">{{ $conversation->client->company->name }}</dd>
+                        </div>
+                    @endif
+                    <div class="flex items-baseline justify-between gap-3">
+                        <dt class="shrink-0 text-xs uppercase tracking-wider text-ink-400 dark:text-sand-500">Conversations</dt>
+                        <dd class="text-ink-700 dark:text-sand-200">{{ $conversation->client->conversations()->count() }}</dd>
+                    </div>
+                </dl>
+
                 <a href="{{ route('clients.show', $conversation->client) }}" class="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-ink-600 hover:underline dark:text-sand-300">
                     <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" /></svg>
-                    Voir la fiche client
+                    Voir la fiche complète
                 </a>
             </x-card>
-        </div>
+        </aside>
     </div>
 </x-app-layout>

@@ -116,38 +116,56 @@
             <table class="min-w-full divide-y divide-sand-200 dark:divide-ink-800">
                 <thead>
                     <tr class="text-left text-xs font-semibold uppercase tracking-wider text-ink-400 dark:text-sand-500">
-                        <th class="px-5 py-3">Client</th>
-                        <th class="px-5 py-3"><x-sortable-header field="sujet" label="Sujet" :sort="$sort" :direction="$direction" /></th>
+                        {{-- Client, sujet et etiquettes tiennent dans une seule colonne :
+                             neuf colonnes forcaient un defilement horizontal des que la
+                             fenetre n'etait pas maximisee. --}}
+                        <th class="px-5 py-3"><x-sortable-header field="sujet" label="Conversation" :sort="$sort" :direction="$direction" /></th>
                         <th class="px-5 py-3">Canal</th>
-                        <th class="px-5 py-3">Catégorie</th>
-                        <th class="px-5 py-3">Étiquettes</th>
                         <th class="px-5 py-3"><x-sortable-header field="statut" label="Statut" :sort="$sort" :direction="$direction" /></th>
                         <th class="px-5 py-3"><x-sortable-header field="priorite" label="Priorité" :sort="$sort" :direction="$direction" /></th>
                         <th class="px-5 py-3">Agent</th>
-                        <th class="px-5 py-3"><x-sortable-header field="date" label="Date" :sort="$sort" :direction="$direction" /></th>
+                        <th class="px-5 py-3 text-right"><x-sortable-header field="date" label="Date" :sort="$sort" :direction="$direction" /></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-sand-100 dark:divide-ink-800">
                     @forelse ($conversations as $conv)
-                        <tr class="cursor-pointer text-sm hover:bg-sand-50 dark:hover:bg-ink-800" onclick="window.location='{{ route('conversations.show', $conv) }}'">
-                            <td class="px-5 py-3 font-medium text-ink-900 dark:text-sand-50">{{ $conv->client->nom_complet }}</td>
-                            <td class="px-5 py-3 text-ink-600 dark:text-sand-300">{{ Str::limit($conv->sujet, 35) }}</td>
-                            <td class="px-5 py-3 capitalize text-ink-500 dark:text-sand-400">{{ str_replace('_', ' ', $conv->canal) }}</td>
-                            <td class="px-5 py-3 capitalize text-ink-500 dark:text-sand-400">{{ $conv->categorie }}</td>
-                            <td class="px-5 py-3">
-                                <div class="flex flex-wrap gap-1">
+                        <tr class="text-sm transition hover:bg-sand-50 dark:hover:bg-ink-800/60">
+                            <td class="px-5 py-3.5">
+                                <div class="flex items-baseline gap-2">
+                                    {{-- Vrai lien : accessible au clavier, ouvrable dans un
+                                         nouvel onglet, contrairement a un onclick sur la ligne. --}}
+                                    <a href="{{ route('conversations.show', $conv) }}"
+                                       class="font-medium text-ink-900 hover:underline dark:text-sand-50">
+                                        {{ Str::limit($conv->sujet, 48) }}
+                                    </a>
+
+                                    @if ($conv->brouillons_en_attente)
+                                        <span class="inline-flex shrink-0 items-center gap-1 rounded-full bg-sand-200 px-2 py-0.5 text-[11px] font-semibold text-sand-900 dark:bg-ink-700 dark:text-sand-200"
+                                              title="Un brouillon généré par l'assistant attend votre validation">
+                                            <svg class="h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" /></svg>
+                                            À valider
+                                        </span>
+                                    @endif
+                                </div>
+
+                                <div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-500 dark:text-sand-400">
+                                    <span>{{ $conv->client->nom_complet }}</span>
+                                    <span class="text-ink-300 dark:text-ink-600">&middot;</span>
+                                    <span class="capitalize">{{ $conv->categorie }}</span>
+
                                     @foreach ($conv->tags as $tag)
-                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium" style="background-color: {{ $tag->color }}22; color: {{ $tag->color }};">{{ $tag->name }}</span>
+                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium" style="background-color: {{ $tag->color }}22; color: {{ $tag->color }};">{{ $tag->name }}</span>
                                     @endforeach
                                 </div>
                             </td>
-                            <td class="px-5 py-3"><x-status-badge :status="$conv->statut" /></td>
-                            <td class="px-5 py-3"><x-priority-badge :priority="$conv->priorite" /></td>
-                            <td class="px-5 py-3 text-ink-500 dark:text-sand-400">{{ $conv->agent->name ?? '—' }}</td>
-                            <td class="px-5 py-3 text-ink-500 dark:text-sand-400">{{ $conv->created_at->format('d/m/Y') }}</td>
+                            <td class="whitespace-nowrap px-5 py-3.5 capitalize text-ink-500 dark:text-sand-400">{{ str_replace('_', ' ', $conv->canal) }}</td>
+                            <td class="px-5 py-3.5"><x-status-badge :status="$conv->statut" /></td>
+                            <td class="px-5 py-3.5"><x-priority-badge :priority="$conv->priorite" /></td>
+                            <td class="whitespace-nowrap px-5 py-3.5 text-ink-500 dark:text-sand-400">{{ $conv->agent->name ?? '—' }}</td>
+                            <td class="whitespace-nowrap px-5 py-3.5 text-right tabular-nums text-ink-500 dark:text-sand-400">{{ $conv->created_at->format('d/m/Y') }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="9" class="px-5 py-14"><x-empty-state title="Aucune conversation trouvée" description="Ajustez vos filtres ou créez une nouvelle conversation." /></td></tr>
+                        <tr><td colspan="6" class="px-5 py-14"><x-empty-state title="Aucune conversation trouvée" description="Ajustez vos filtres ou créez une nouvelle conversation." /></td></tr>
                     @endforelse
                 </tbody>
             </table>

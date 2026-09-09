@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Client;
 use App\Models\Conversation;
+use App\Models\Reponse;
 
 /** Home page after login: the at-a-glance counters and recent-activity feed. */
 class DashboardController extends Controller
@@ -19,6 +20,15 @@ class DashboardController extends Controller
         $resolues = Conversation::where('statut', 'resolu')->count();
         $nouvelles = Conversation::where('statut', 'nouveau')->count();
         $enCours = Conversation::where('statut', 'en_cours')->count();
+
+        // Ce qui appelle une action, par opposition aux totaux : un tableau de
+        // bord de service client doit d'abord repondre a « que dois-je traiter
+        // maintenant ? ». Chaque compteur renvoie vers la liste deja filtree.
+        $nonAssignees = Conversation::whereNull('agent_id')->count();
+        $brouillonsAValider = Reponse::where('is_draft', true)->count();
+        $mesConversations = Conversation::where('agent_id', auth()->id())
+            ->whereIn('statut', ['nouveau', 'en_cours'])
+            ->count();
 
         $parCategorie = Conversation::selectRaw('categorie, count(*) as total')
             ->groupBy('categorie')
@@ -39,6 +49,9 @@ class DashboardController extends Controller
             'totalConversations',
             'enAttente',
             'resolues',
+            'nonAssignees',
+            'brouillonsAValider',
+            'mesConversations',
             'nouvelles',
             'enCours',
             'parCategorie',
