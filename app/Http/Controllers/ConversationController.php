@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\AutomationRule;
 use App\Models\Client;
 use App\Models\Conversation;
+use App\Support\SqlDialect;
 use App\Models\ConversationNote;
 use App\Models\Reponse;
 use App\Models\Tag;
@@ -29,10 +30,21 @@ class ConversationController extends Controller
     private const SORTABLE = [
         'date' => 'created_at',
         'sujet' => 'sujet',
-        // Ordre "metier" (Faible < Moyenne < Haute), pas alphabetique.
-        'priorite' => "FIELD(priorite, 'faible','moyenne','haute')",
-        'statut' => "FIELD(statut, 'nouveau','en_cours','en_attente','resolu')",
+        // Ordre "metier" (Faible < Moyenne < Haute), pas alphabetique :
+        // l'expression SQL est construite a l'execution par triParValeurs().
+        'priorite' => 'priorite',
+        'statut' => 'statut',
     ];
+
+    /** Traduit une colonne triable en expression SQL d'ordonnancement. */
+    private function triParValeurs(string $sort): string
+    {
+        return match ($sort) {
+            'priorite' => SqlDialect::orderByValues('priorite', Conversation::PRIORITES),
+            'statut' => SqlDialect::orderByValues('statut', Conversation::STATUTS),
+            default => self::SORTABLE[$sort],
+        };
+    }
 
     public function index(Request $request)
     {
@@ -50,7 +62,7 @@ class ConversationController extends Controller
             ->when($request->canal, fn ($q) => $q->where('canal', $request->canal))
             ->when($request->boolean('non_assignees'), fn ($q) => $q->whereNull('agent_id'))
             ->when($request->boolean('mes_conversations'), fn ($q) => $q->where('agent_id', auth()->id()))
-            ->orderByRaw(self::SORTABLE[$sort].' '.$direction)
+            ->orderByRaw($this->triParValeurs($sort).' '.$direction)
             ->paginate(15)
             ->withQueryString();
 

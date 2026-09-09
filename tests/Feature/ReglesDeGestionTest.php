@@ -244,6 +244,18 @@ class ReglesDeGestionTest extends TestCase
         $this->actingAs(User::factory()->admin()->create())->get('/agents')->assertOk();
     }
 
+    /**
+     * L'analytique expose le classement de performance de chaque agent : elle
+     * releve de la supervision. Le rapport et le diagramme de cas d'utilisation
+     * la placent au niveau manager — ce test le garantit cote serveur.
+     */
+    public function test_l_analytique_est_reservee_au_manager_et_a_l_administrateur(): void
+    {
+        $this->actingAs(User::factory()->create())->get('/analytics')->assertForbidden();
+        $this->actingAs(User::factory()->manager()->create())->get('/analytics')->assertOk();
+        $this->actingAs(User::factory()->admin()->create())->get('/analytics')->assertOk();
+    }
+
     /** Hierarchie des roles : le manager supervise les equipes, l'agent non. */
     public function test_la_gestion_des_equipes_est_ouverte_au_manager_mais_pas_a_l_agent(): void
     {

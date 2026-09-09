@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Conversation;
 use App\Models\User;
+use App\Support\SqlDialect;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
@@ -65,7 +66,7 @@ class AnalyticsController extends Controller
                 '=',
                 'c.id'
             )
-            ->selectRaw('AVG(TIMESTAMPDIFF(MINUTE, c.created_at, first_r.first_reponse)) as avg_minutes')
+            ->selectRaw('AVG('.SqlDialect::minutesBetween('c.created_at', 'first_r.first_reponse').') as avg_minutes')
             ->value('avg_minutes');
 
         return $value !== null ? round((float) $value, 1) : null;
@@ -108,7 +109,7 @@ class AnalyticsController extends Controller
                         'c.id'
                     )
                     ->where('first_r.agent_id', $agent->id)
-                    ->selectRaw('AVG(TIMESTAMPDIFF(MINUTE, c.created_at, first_r.first_reponse)) as avg_minutes')
+                    ->selectRaw('AVG('.SqlDialect::minutesBetween('c.created_at', 'first_r.first_reponse').') as avg_minutes')
                     ->value('avg_minutes');
 
                 return [

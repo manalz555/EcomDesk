@@ -77,10 +77,11 @@ Route::middleware(['auth', 'verified', 'actif'])->group(function () {
     Route::patch('conversations/{conversation}/satisfaction', [ConversationController::class, 'updateSatisfaction'])->name('conversations.satisfaction');
     Route::get('conversations/{conversation}/attachments/{attachment}', [ConversationController::class, 'downloadAttachment'])->name('conversations.attachments.download');
 
-    Route::get('analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
-
-    // Equipes : administrateurs et managers
+    // Analytique et equipes : administrateurs et managers.
+    // L'analytique expose le classement de performance de chaque agent : elle
+    // releve de la supervision, pas du travail quotidien d'un agent.
     Route::middleware('manage-team')->group(function () {
+        Route::get('analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
         Route::resource('teams', TeamController::class)->except(['show']);
     });
 

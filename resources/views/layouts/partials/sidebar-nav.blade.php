@@ -39,7 +39,7 @@
             </x-sidebar-link>
         @endif
 
-        @if (Route::has('analytics.index'))
+        @if ($user?->canManageTeam() && Route::has('analytics.index'))
             <x-sidebar-link :href="route('analytics.index')" :active="request()->routeIs('analytics.*')">
                 <x-slot:icon>
                     <svg class="h-5 w-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">
@@ -51,11 +51,11 @@
         @endif
     </div>
 
-    @if ($user?->isAdmin() && (Route::has('agents.index') || Route::has('teams.index') || Route::has('companies.index')))
+    @if ($user?->canManageTeam())
         <div class="space-y-1">
             <p class="{{ $sectionLabelClass }}">Gestion</p>
 
-            @if (Route::has('agents.index'))
+            @if ($user?->isAdmin() && Route::has('agents.index'))
                 <x-sidebar-link :href="route('agents.index')" :active="request()->routeIs('agents.*')">
                     <x-slot:icon>
                         <svg class="h-5 w-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">
@@ -77,7 +77,7 @@
                 </x-sidebar-link>
             @endif
 
-            @if (Route::has('companies.index'))
+            @if ($user?->isAdmin() && Route::has('companies.index'))
                 <x-sidebar-link :href="route('companies.index')" :active="request()->routeIs('companies.*')">
                     <x-slot:icon>
                         <svg class="h-5 w-5 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor">

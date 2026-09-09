@@ -7,6 +7,7 @@ use App\Models\AutomationRule;
 use App\Models\ChannelIntegration;
 use App\Models\Conversation;
 use App\Models\User;
+use App\Support\SqlDialect;
 use Illuminate\Http\Request;
 
 /**
@@ -35,7 +36,9 @@ class IntegrationController extends Controller
             ChannelIntegration::firstOrCreate(['channel' => $channel]);
         }
 
-        $integrations = ChannelIntegration::orderByRaw("FIELD(channel, '".implode("','", array_keys(self::CHANNELS))."')")->get();
+        $integrations = ChannelIntegration::orderByRaw(
+            SqlDialect::orderByValues('channel', array_keys(self::CHANNELS))
+        )->get();
 
         $rules = AutomationRule::with('bot')->orderBy('name')->get();
         $bots = User::where('is_bot', true)->get();
