@@ -17,8 +17,8 @@
         <div class="flex min-h-screen bg-white dark:bg-ink-950">
 
             <div class="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-ink-900 p-12 text-sand-50 lg:flex">
-                <div class="pointer-events-none absolute -right-24 -top-24 h-96 w-96 animate-float rounded-full bg-sand-500/10" style="animation-duration: 7s;"></div>
-                <div class="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 animate-float rounded-full bg-sand-500/10" style="animation-duration: 9s; animation-delay: -3s;"></div>
+                <div class="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-sand-500/10"></div>
+                <div class="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-sand-500/10"></div>
 
                 <a href="{{ route('home') }}" class="relative z-10">
                     <x-brand-mark size="lg" :on-dark="true" />

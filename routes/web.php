@@ -14,10 +14,30 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\WidgetController;
+use App\Models\Conversation;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return auth()->check() ? redirect()->route('dashboard') : view('welcome');
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
+
+    // La page publique montre la vraie boite de reception plutot qu'une maquette :
+    // les noms de famille sont masques, aucune donnee de conversation n'est exposee
+    // au-dela du sujet. Si la base est vide, la vue retombe sur un jeu d'exemple.
+    return view('welcome', [
+        // Les sujets tres courts ("salut", "test") viennent des essais du widget :
+        // ils sont ecartes de la vitrine, pas de l'application. Le filtrage se
+        // fait en PHP plutot qu'en SQL brut, pour rester independant du SGBD.
+        'apercu' => Conversation::with('client')
+            ->latest()
+            ->take(20)
+            ->get()
+            ->filter(fn ($c) => mb_strlen($c->sujet) > 14)
+            ->take(5)
+            ->values(),
+        'totalConversations' => Conversation::count(),
+    ]);
 })->name('home');
 
 // Live chat widget — public routes (a website visitor has no account).

@@ -3,9 +3,10 @@
         <x-brand-mark />
 
         <nav class="hidden items-center gap-8 md:flex">
-            <a href="#channels" class="text-sm font-medium text-ink-600 hover:text-ink-900 dark:text-sand-300 dark:hover:text-sand-50">Canaux</a>
-            <a href="#features" class="text-sm font-medium text-ink-600 hover:text-ink-900 dark:text-sand-300 dark:hover:text-sand-50">Fonctionnalités</a>
-            <a href="#automation" class="text-sm font-medium text-ink-600 hover:text-ink-900 dark:text-sand-300 dark:hover:text-sand-50">Automatisation</a>
+            <a href="#probleme" class="text-sm font-medium text-ink-600 transition hover:text-ink-900 dark:text-sand-300 dark:hover:text-sand-50">Le problème</a>
+            <a href="#cycle" class="text-sm font-medium text-ink-600 transition hover:text-ink-900 dark:text-sand-300 dark:hover:text-sand-50">Le parcours</a>
+            <a href="#automation" class="text-sm font-medium text-ink-600 transition hover:text-ink-900 dark:text-sand-300 dark:hover:text-sand-50">Automatisation</a>
+            <a href="#canaux" class="text-sm font-medium text-ink-600 transition hover:text-ink-900 dark:text-sand-300 dark:hover:text-sand-50">Canaux</a>
         </nav>
 
         <div class="flex items-center gap-2">

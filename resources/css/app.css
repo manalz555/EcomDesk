@@ -18,6 +18,10 @@
     --font-sans: 'Figtree', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 
+    /* Serif douce et peu contrastee, reservee aux titres de la page publique.
+       L'interface authentifiee reste entierement en Figtree. */
+    --font-display: 'Literata', Georgia, 'Times New Roman', serif;
+
     /* Warm neutral / beige scale — primary brand surface color. */
     --color-sand-50: #fdfcfa;
     --color-sand-100: #f8f4ec;
@@ -50,97 +54,12 @@
     --radius-2xl: 1.25rem;
 }
 
-/* ---- Landing page motion (scroll reveal, floating icons, rotating card glow, CTA shimmer) ---- */
-
-/* Scroll reveal: fades a section/element up into place the first time it enters the viewport.
-   Toggled by a small IntersectionObserver in resources/js/app.js (adds .is-visible once, never removes it). */
-[data-reveal] {
-    opacity: 0;
-    transform: translateY(28px);
-    transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-}
-[data-reveal].is-visible {
-    opacity: 1;
-    transform: translateY(0);
-}
-@media (prefers-reduced-motion: reduce) {
-    [data-reveal] {
-        opacity: 1;
-        transform: none;
-        transition: none;
-    }
-}
-
-@keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-}
-.animate-float {
-    animation: float 3.2s ease-in-out infinite;
-}
-
-@keyframes spin-slow {
-    to { transform: rotate(360deg); }
-}
-.animate-spin-slow {
-    animation: spin-slow 6s linear infinite;
-}
-
-/* Rotating gradient ring around a card, on hover — nested-div technique (no mask-composite,
-   which is unreliable across browsers). Structure required in the HTML:
-   .glow-card (padding = ring thickness, overflow hidden, clips the oversized spinner)
-     .glow-card__spin (oversized conic-gradient div that rotates; only its edge peeks through
-                        the padding gap, since it's clipped by the parent's overflow:hidden)
-     .glow-card__inner (the real card surface — bg color, radius, content — sits on top,
-                         covering everything except that thin ring) */
-.glow-card {
-    position: relative;
-    padding: 1.5px;
-    border-radius: inherit;
-    overflow: hidden;
-}
-.glow-card__spin {
-    position: absolute;
-    inset: -75%;
-    background: conic-gradient(from 0deg, transparent 0%, var(--glow-color, #c0a36c) 15%, transparent 30%);
-    opacity: 0;
-    transition: opacity 0.4s ease;
-    animation: spin-slow 4.5s linear infinite;
-}
-.glow-card:hover .glow-card__spin {
-    opacity: 1;
-}
-.glow-card__inner {
-    position: relative;
-    border-radius: inherit;
-    height: 100%;
-}
-
-@keyframes shimmer-sweep {
-    0% { transform: translateX(-120%) skewX(-15deg); }
-    60%, 100% { transform: translateX(220%) skewX(-15deg); }
-}
-.btn-shimmer {
-    position: relative;
-    overflow: hidden;
-}
-.btn-shimmer::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    width: 40%;
-    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
-    animation: shimmer-sweep 3.2s ease-in-out infinite;
-    animation-delay: 1s;
-}
-
-@keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 0 0 rgb(192 163 108 / 0.45); }
-    50% { box-shadow: 0 0 0 10px rgb(192 163 108 / 0); }
-}
-.btn-pulse {
-    animation: pulse-glow 2.4s ease-in-out infinite;
-}
+/* La page publique n'embarque plus d'effets decoratifs : icones flottantes,
+   anneau degrade rotatif au survol des cartes, brillance et pulsation du
+   bouton d'appel a l'action, et devoilement au defilement ont tous ete
+   retires lors de la refonte. Ils attiraient l'attention sans porter
+   d'information, et le devoilement laissait des blocs vides pendant un
+   defilement rapide. La page se lit desormais entierement des le chargement. */
 
 /* ---- Submit feedback: spinner appended to any submit button while its form
    is being sent (added by the global submit listener in app.js). Uses
