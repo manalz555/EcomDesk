@@ -46,7 +46,7 @@ test, se fait en modifiant une seule ligne.
 | Contrôleurs | 22 |
 | Migrations | 26 |
 | Vues Blade | 68 |
-| Tests automatisés | 36 (80 assertions) |
+| Tests automatisés | 40 (87 assertions) |
 
 - **Middlewares** : `EnsureIsAdmin`, `EnsureCanManageTeam`, `EnsureIsActive`
 - **Tâche asynchrone** : `GenerateAutomatedReply`, mise en file pour ne pas bloquer la réponse HTTP
@@ -69,6 +69,8 @@ php artisan test
   priorités et satisfaction, permissions des trois rôles, cycle complet des brouillons
 - `AutomatisationEtWidgetTest` — déclenchement et non-déclenchement des règles, dégradation
   contrôlée en cas d'échec de l'API externe, parcours complet d'un visiteur sur le widget
+- `SqlDialectTest` — les fragments SQL assemblés à la main : ordre métier, échappement des
+  apostrophes, traduction de l'écart en minutes selon le pilote
 
 Plusieurs tests vérifient délibérément un **refus** : qu'un agent ne puisse pas supprimer un client,
 qu'un brouillon ne puisse pas être validé depuis une autre conversation. Ce sont ceux-là qui
